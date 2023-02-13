@@ -66,15 +66,17 @@ fig.tot.charges
 ## 4. What is the distribution of estimated prices in each year? Present your results with a violin plot, and recall our formula for estimating prices from class.
 
 ```{r, echo=FALSE, warning=FALSE}
-price.estimate <- final.hcris.data %>%
+price.estimation <- final.hcris.data %>%
   mutate( discount_factor = 1-tot_discounts/tot_charges,
           price_num = (ip_charges + icu_charges + ancillary_charges)*discount_factor - tot_mcare_payment,
           price_denom = tot_discharges - mcare_discharges,
-          price = price_num/price_denom)
+          est_price = price_num/price_denom)
 
 #Violin Plot of Prices over Time
-ggplot(price.estimate, aes(x = as.character(year), y=price, )) + 
+ggplot(price.estimation, aes(x = as.character(year), y=est_price, )) + 
   geom_violin(fill="light blue") + scale_y_continuous(trans = "log10") + ggtitle("Distribution of Prices") + xlab("Year") + ylab("Price scaled by log10") + theme(plot.title = element_text(hjust = 0.5))
+
+
 ```
 
 # Estimate the ATEs
@@ -82,19 +84,59 @@ ggplot(price.estimate, aes(x = as.character(year), y=price, )) +
 ## 5. Calculate the average price among penalized versus non-penalized hospitals.
 
 ```{r, include=FALSE, warning=FALSE}
-final.hcris <- price.estimate %>% ungroup() %>%
-  filter(price_denom>100, !is.na(price_denom), 
-         price_num>0, !is.na(price_num),
-         price<100000, 
-         beds>30, year==2012) %>% 
-  mutate( hvbp_payment = ifelse(is.na(hvbp_payment),0,hvbp_payment),
-          hrrp_payment = ifelse(is.na(hrrp_payment),0,abs(hrrp_payment)),
-          penalty = (hvbp_payment-hrrp_payment<0)) 
-mean.pen <- round(mean(final.hcris$price[which(final.hcris$penalty==1)]),2)
-mean.nopen <- round(mean(final.hcris$price[which(final.hcris$penalty==0)]),2)
-mean.pen
-mean.nopen
+hcris_2012 <- price.estimation %>% filter(year == 2012)
+
+hcris_2012$penalty <- ifelse(hcris_2012$hrrp_payment + hcris_2012$hvbp_payment < 0, 1,0)
+
+pen_price<- hcris_2012 %>%
+  filter(!is.na(penalty)) %>% 
+  filter(penalty == 1) %>%
+  group_by(penalty) %>% 
+  summarise(price = mean(est_price, na.rm = TRUE))
+
+non_pen_price <- hcris_2012 %>%
+  filter(!is.na(penalty)) %>% 
+  filter(penalty == 0) %>%
+  group_by(penalty) %>% 
+  summarise(price = mean(est_price, na.rm = TRUE))
+
+pen_price
+non_pen_price
 ```
 
-The average price for penalized hospitals = 9896.31
-The average price for non-penalized hospitals = 9560.41
+The average price for penalized hospitals = 10,234.98
+The average price for non-penalized hospitals = 9752.46
+
+## 6. Split hospitals into quartiles based on bed size
+
+```{r, echo=FALSE, warning=FALSE}
+hcris_2012$quartile <- ntile(hcris_2012$beds, 4)
+
+hcris_2012$quartile_1 <- ifelse(hcris_2012$quartile == 1, 1,0)
+hcris_2012$quartile_2 <- ifelse(hcris_2012$quartile == 2, 1,0)
+hcris_2012$quartile_3 <- ifelse(hcris_2012$quartile == 3, 1,0)
+hcris_2012$quartile_4 <- ifelse(hcris_2012$quartile == 4, 1,0)
+
+fig_6 <- hcris_2012 %>% filter(!is.na(penalty)) %>%
+  group_by(quartile, penalty) %>%
+  summarise(avg_price = mean(est_price, na.rm = TRUE))
+
+knitr::kable(fig_6)
+```
+
+
+## 7. Find the average treatment effect using each of the following estimators, and present your results in a single table
+
+As seen on the R file, I attempted to code this problem, but couldn't troubleshoot the error successfully by the due date. Will be working on it. 
+
+## 8. With these different treatment effect estimators, are the results similar, identical, very different?
+
+I'm not too sure without having the result from #7, but I would want to estimate that the results for different treatment effect estimators would be very different. 
+
+## 9. Do you think you’ve estimated a causal effect of the penalty? Why or why not? (just a couple of sentences)
+
+If the results for different treatment effect estimators were very different, I would want to say that I have estimated a causal effect of the penalty. The three criteria for establishing causality is covariation, termporal precedence, and control for confounding variables; however, I do not have enough information to ascertain the causality. 
+
+## 10. Briefly describe your experience working with these data (just a few sentences). Tell me one thing you learned and one thing that really aggravated you.
+
+Once again, these data were just a lot to handle at first because of the sheer volume of it. Also, I had a very difficult time figuring out how to sort, filter data because I have zero experience, and there was not much guidance provided on where to start. 
