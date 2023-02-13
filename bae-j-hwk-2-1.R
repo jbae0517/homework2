@@ -50,28 +50,74 @@ fig.tot.charges
 # 4. What is the distribution of estimated prices in each year? 
 #Again present your results with a violin plot, and recall our formula for estimating prices from class.
 
-price.estimate <- final.hcris.data %>%
+price.estimation <- final.hcris.data %>%
   mutate( discount_factor = 1-tot_discounts/tot_charges,
           price_num = (ip_charges + icu_charges + ancillary_charges)*discount_factor - tot_mcare_payment,
           price_denom = tot_discharges - mcare_discharges,
-          price = price_num/price_denom)
+          est_price = price_num/price_denom)
 
 #Violin Plot of Prices over Time
-ggplot(price.estimate, aes(x = as.character(year), y=price, )) + 
+ggplot(price.estimation, aes(x = as.character(year), y=est_price, )) + 
   geom_violin(fill="light blue") + scale_y_continuous(trans = "log10") + ggtitle("Distribution of Prices") + xlab("Year") + ylab("Price scaled by log10") + theme(plot.title = element_text(hjust = 0.5))
 
 #Estimate ATEs
 # 5. Calculate the average price among penalized versus non-penalized hospitals.
 
-final.hcris <- price.estimate %>% ungroup() %>%
-  filter(price_denom>100, !is.na(price_denom), 
-         price_num>0, !is.na(price_num),
-         price<100000, 
-         beds>30, year==2012) %>% 
-  mutate( hvbp_payment = ifelse(is.na(hvbp_payment),0,hvbp_payment),
-          hrrp_payment = ifelse(is.na(hrrp_payment),0,abs(hrrp_payment)),
-          penalty = (hvbp_payment-hrrp_payment<0)) 
-mean.pen <- round(mean(final.hcris$price[which(final.hcris$penalty==1)]),2)
-mean.nopen <- round(mean(final.hcris$price[which(final.hcris$penalty==0)]),2)
-mean.pen
-mean.nopen
+
+hcris_2012 <- price.estimation %>% filter(year == 2012)
+
+hcris_2012$penalty <- ifelse(hcris_2012$hrrp_payment + hcris_2012$hvbp_payment < 0, 1,0)
+
+pen_price<- hcris_2012 %>%
+  filter(!is.na(penalty)) %>% 
+  filter(penalty == 1) %>%
+  group_by(penalty) %>% 
+  summarise(price = mean(est_price, na.rm = TRUE))
+
+non_pen_price <- hcris_2012 %>%
+  filter(!is.na(penalty)) %>% 
+  filter(penalty == 0) %>%
+  group_by(penalty) %>% 
+  summarise(price = mean(est_price, na.rm = TRUE))
+
+pen_price
+non_pen_price
+
+# 6. Split hospitals into quartiles based on bed size
+
+
+hcris_2012$quartile <- ntile(hcris_2012$beds, 4)
+
+hcris_2012$quartile_1 <- ifelse(hcris_2012$quartile == 1, 1,0)
+hcris_2012$quartile_2 <- ifelse(hcris_2012$quartile == 2, 1,0)
+hcris_2012$quartile_3 <- ifelse(hcris_2012$quartile == 3, 1,0)
+hcris_2012$quartile_4 <- ifelse(hcris_2012$quartile == 4, 1,0)
+
+fig_6 <- hcris_2012 %>% filter(!is.na(penalty)) %>%
+  group_by(quartile, penalty) %>%
+  summarise(avg_price = mean(est_price, na.rm = TRUE))
+
+fig_6
+
+# 7. Find the average treatment effect using each of the following estimators, and present your results in a single table
+
+lp.vars <- hcris_2012$quartile %>% 
+  select(beds, mcaid_discharges, penalty, ip_charges, 
+         mcare_discharges, tot_mcare_payment, price, hcris_2012$quartile_1, hcris_2012$quartile_2, hcris_2012$quartile_3, hcris_2012$quartile_4, hcris_2012$quartile) %>%
+  filter(complete.cases(.))
+lp.covs <- lp.vars %>% select(-c( "bed.quantile","price"))
+m.nn.var <- Matching::Match(Y=lp.vars$price,
+                            Tr=lp.vars$hcris_2012$quartile_1,
+                            X=lp.covs,
+                            M=4,
+                            Weight=1,
+                            estimand="ATE")
+summary(m.nn.var)
+
+
+
+# 8. With these different treatment effect estimators, are the results similar, identical, very different?
+
+# 9. Do you think you’ve estimated a causal effect of the penalty? Why or why not? (just a couple of sentences)
+
+# 10. Briefly describe your experience working with these data (just a few sentences). Tell me one thing you learned and one thing that really aggravated you.
