@@ -1,0 +1,87 @@
+---
+title: "bae-j-hwk-2-3"
+author: "Jennifer Bae"
+date: "2023-02-20"
+header-includes:
+ \usepackage{booktabs}
+ \usepackage{float}
+ \floatplacement{figure}{H}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, stringr, readxl, data.table, gdata, scales,
+               kableExtra)
+
+HCRIS_Data_v1996 <- readRDS("/Users/jenniferbae/Downloads/ECON 470 R Coding/homework2/data/output/HCRIS_Data_v1996.rds")
+HCRIS_Data_v2010 <- readRDS("/Users/jenniferbae/Downloads/ECON 470 R Coding/homework2/data/output/HCRIS_Data_v2010.rds")
+final.hcris.data <- readRDS("/Users/jenniferbae/Downloads/ECON 470 R Coding/homework2/data/output/HCRIS_Data.rds")
+```
+
+
+```{r, include=FALSE}
+load("Hwk2_workspace.Rdata")
+```
+
+# Summarize the Data
+
+## 1. How many hospitals filed more than one report in the same year? Show your answer as a line graph of the number of hospitals over time.
+
+```{r, echo=FALSE, warning=FALSE, fig.width=10, figh.height=4, fig.cap="Number of Hospitals with more than 1 Report in Each Year from 1997 to 2018"}
+dup.report
+```
+
+## 2. After removing/combining multiple reports, how many unique hospital IDs (Medicare provider numbers) exist in the data?
+
+After removing and combining multiple reports, there are `r format(unique_provider_num, big.mark = ",")` unique hospital IDs in the data. 
+
+
+## 3. What is the distribution of total charges (tot_charges in the data) in each year? Show your results with a “violin” plot, with charges on the y-axis and years on the x-axis.
+
+```{r, echo=FALSE, warning=FALSE, fig.width=10, fig.height=4, fig.cap="Distribution of Total Changes in Each Year from 1997 to 2018"}
+fig.tot.charges
+```
+
+
+## 4. What is the distribution of estimated prices in each year? Present your results with a violin plot, and recall our formula for estimating prices from class.
+
+```{r, echo=FALSE, warning=FALSE, fig.width=9, fig.height=4, fig.cap="Distribution of Estimated Prices in Each Year from 1997 to 2018"}
+
+fig.est.charges
+
+```
+
+## 5. Calculate the average price among penalized versus non-penalized hospitals.
+
+
+The average price for penalized hospitals is `r format(mean.pen, big.mark = ",")` and the average price for non-penalized hospitals is `r format(mean.nopen, big.mark = ",")`
+
+
+## 6. Split hospitals into quartiles based on bed size. Provide a table of the average price among treated/control groups for each quartile.
+
+```{r, echo=FALSE, warning=FALSE}
+knitr::kable(quartile.data)
+```
+
+## 7. Find the average treatment effect using each of the following estimators, and present your results in a single table
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+knitr::kable(ATE_table)
+```
+
+
+## 8. With these different treatment effect estimators, are the results similar, identical, very different?
+
+As shown, the results with different treatment effect estimators were identical. This is due to the fact that we used dummy variables, such as the quartiles of bed size to draw these estimations. In this case, discrete variables were used, suggesting that the results would have been different if they had been a continuous variable instead. 
+
+## 9. Do you think you’ve estimated a causal effect of the penalty? Why or why not?
+
+I don't think I have estimated a causal effect of the penalty since we only took bed size into consideration when drawing our estimation and regression analysis. We examined the effect of penalty on price when only considering  bed size while we omitted other variables for the purpose of this assignment, making our results prone to omitted variables bias and selection bias -- as we discussed in class. 
+
+## 10. Briefly describe your experience working with these data. Tell me one thing you learned and one thing that really aggravated you.
+
+Once again, these data were just a lot to handle at first because of the sheer volume of it. Also, I had a  difficult time figuring out how to sort, filter data because I have zero experience, and there was not much guidance provided on where to start. However, my teammates who have more experience with coding in R and handling data sets have been very helpful. 
